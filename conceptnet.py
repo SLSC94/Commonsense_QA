@@ -64,15 +64,18 @@ class ConceptNet:
         # This is the API.
         obj = requests.get('http://api.conceptnet.io/c/en/' + word + '?offset=0&limit={}'.format(lim)).json()
         relations = []
+        term = '/c/en/' + word
         if 'error' not in obj.keys():  # eliminate words not found in ConceptNet
             for j in obj['edges']:
+                if 'language' not in j['start'] or 'language' not in j['end']:
+                    continue
                 if j['start']['language'] == 'en' and j['end']['language'] == 'en':
                     rel = [j['start']['label'],
                            j['weight'],
                            j['end']['label'],
                            j['rel']['label']]
 
-                    if word in j['start']['label']:
+                    if j['start']['term'] == term:
                         rel[0] = ''
                     else:
                         rel[2] = ''
@@ -105,13 +108,22 @@ class ConceptNet:
         emb = self.model.bert.embeddings(torch.tensor([ids]))[0]
         return int(emb[0] @ emb[1])
 
-    def construct_subgraph(self, qa_id, max_n=50):
+    def construct_subgraph(self, qn, choices, k=10, max_n=50):
+        '''
+
+        :param qn:
+        :param choices:
+        :param k: beam search width
+        :param max_n: number of nodes in graph
+        :return: adj matrix of size max_n
+        '''
         assert self.questions is not None, 'Load data file first!'
         # TODO
         '''
             1) identify source concept S and relevant concepts R in question (using attention or n-gram)
-            2) rank each connected node's similarity to R
-            3) stop at max_n nodes
-            4) return weighted adj matrix
+            2) for each layer, rank each connected node's similarity to R and keep top k
+            3) need to handle cycles in graph
+            4) stop at max_n nodes
+            5) return weighted adj matrix
         '''
         return np.eye(max_n)
