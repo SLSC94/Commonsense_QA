@@ -207,6 +207,11 @@ class ConceptNet:
 
     def construct_subgraph(self, k=10, max_n=50):
         '''
+        Will create both a list of adjacency matrices and a list of feature vectors
+        '''
+        
+        
+        '''
         :param qn:
         :param choices:
         :param k: beam search width
@@ -222,8 +227,14 @@ class ConceptNet:
                average word embedding (since choices can have multiple words)
             3) return weighted adj matrix
         '''
+        
+        '''
+        This will also contain the features to pass into the CGN
+        '''
+        
         self.problem_words = 0
-        self.subgraphs = []
+        self.adjacency_mat = []
+        self.Gfeature_mat = []
         for i in range(len(self.questions)):
             S = self.source_concept[i]
             C = self.choices[i]
@@ -234,7 +245,8 @@ class ConceptNet:
                 emb = torch.cat((emb, C_emb), dim = 0)
             
             adj_mat = torch.matmul(emb, torch.t(emb))
-            self.subgraphs.append(adj_mat)
+            self.adjacency_mat.append(adj_mat)
+            self.Gfeature_mat.append(emb)
 
     def get_avg_embedding(self, words):
         list_words = self.break_sentence(words)
@@ -249,5 +261,8 @@ class ConceptNet:
         '''normalise'''
         avg_emb = avg_emb/avg_emb.norm()
         return avg_emb
+    
+    def construct_subgraph(self, i):
+        #takes in an i
         
         
