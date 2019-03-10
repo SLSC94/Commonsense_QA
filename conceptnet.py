@@ -66,7 +66,7 @@ class ConceptNet:
         # This is the API.
         obj = requests.get('http://api.conceptnet.io/c/en/' + word + '?offset=0&limit={}'.format(lim)).json()
         relations = []
-        term = '/c/en/' + word
+
         if 'error' not in obj.keys():  # eliminate words not found in ConceptNet
             for j in obj['edges']:
                 if 'language' not in j['start'] or 'language' not in j['end']:
@@ -76,11 +76,6 @@ class ConceptNet:
                            j['weight'],
                            j['end']['label'],
                            j['rel']['label']]
-
-                    if j['start']['term'] == term:
-                        rel[0] = ''
-                    else:
-                        rel[2] = ''
 
                     relations.append(rel)
             return [word, relations]
@@ -99,29 +94,32 @@ class ConceptNet:
         '''
         regex = r'\b\w+\b'
         return re.findall(regex, sentence.lower())
-    
+
+    def load_triplets(self, files=['data/train_triplets.txt',
+                                   'data/dev_triplets.txt',
+                                   'data/test_triplets.txt']):
+        '''
+        load in the triplets directly - separated just in case. Joining them is easy.
+        '''
+        triplets = {}
+        for i in files:
+            triplets.update(self.decoder(json.load(open(i))))
+
+        self.triplets = triplets
+
     def get_triplets_multithread(self, vocab=None, n_jobs=16):
         # using multithreading
         # returns dict for quick access to neighbors of word
-        
-        '''
-        load in the triplets directly - separated just in case. Joining them is easy. 
-        '''
-        self.dev_triplets = self.decoder(json.load(open("data/dev_triplets.txt")))
-        self.train_triplets = self.decoder(json.load(open("data/train_triplets.txt")))
-        self.test_triplets = self.decoder(json.load(open("data/test_triplets.txt")))
-        
-        self.triplets = {**self.test_triplets , **self.dev_triplets , **self.train_triplets}
-        
-#         if vocab is None:
-#             vocab = self.vocab[0:10]
-#         assert vocab is not None, 'Pass vocab of words in.'
-#         assert len(vocab) <= 6000, 'Limit to 6000 tries.'
 
-#         from joblib import Parallel, delayed
-#         output = Parallel(n_jobs=n_jobs)(delayed(self.get_triplet)(i) for i in vocab)
-#         output = [x for x in output if x is not None]
-#         return dict(output)
+        if vocab is None:
+            vocab = self.vocab[0:10]
+        assert vocab is not None, 'Pass vocab of words in.'
+        assert len(vocab) <= 6000, 'Limit to 6000 tries.'
+
+        from joblib import Parallel, delayed
+        output = Parallel(n_jobs=n_jobs)(delayed(self.get_triplet)(i) for i in vocab)
+        output = [x for x in output if x is not None]
+        return dict(output)
 
     def get_source_concept(self):
         # TODO: loop thru each question and choice, find word in question that has all 3 choices as neighbours
@@ -142,9 +140,10 @@ class ConceptNet:
         and for each set in list1, count how many times there is an intersection with 
         each of the three sets in list2. 
         '''
-        
+
+        assert self.questions is not None, 'load data first'
+
         #we need to get rid of common words:
-        import nltk
         from nltk.corpus import stopwords
         SW = set(stopwords.words('english'))
         
@@ -202,7 +201,7 @@ class ConceptNet:
         # use embedding from before finetuning
         assert self.tokenizer is not None, 'Unknown tokenizer'
         ids = self.tokenizer.convert_tokens_to_ids([w1, w2])
-        emb = self.model.bert.embeddings(torch.tensor([ids]))[0]
+        emb = self.model.bert.embeddings.word_embeddings(torch.tensor([ids]))[0]
         return float(emb[0] @ emb[1])
 
     def construct_subgraph(self, k=10, max_n=50):
@@ -248,21 +247,17 @@ class ConceptNet:
             self.adjacency_mat.append(adj_mat)
             self.Gfeature_mat.append(emb)
 
-    def get_avg_embedding(self, words):
+    def get_avg_embedding(self, words, verbose=True):
         list_words = self.break_sentence(words)
         try:
             ids_words = self.tokenizer.convert_tokens_to_ids(list_words)
             emb_words = self.model.bert.embeddings.word_embeddings.forward(torch.tensor(ids_words))
         except:
             emb_words = torch.ones([1,768])
-            self.problem_words += 1
-            print(list_words)
-        avg_emb = emb_words.mean(dim = 0)[None,:]
+            if verbose:
+                self.problem_words += 1
+                print(list_words)
+        avg_emb = emb_words.mean(dim=0)[None,:]
         '''normalise'''
         avg_emb = avg_emb/avg_emb.norm()
         return avg_emb
-    
-    def construct_subgraph(self, i):
-        #takes in an i
-        pass
-        
