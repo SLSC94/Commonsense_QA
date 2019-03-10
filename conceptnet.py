@@ -244,7 +244,7 @@ class ConceptNet:
                 emb = torch.cat((emb, C_emb), dim = 0)
             
             adj_mat = torch.matmul(emb, torch.t(emb))
-            self.adjacency_mat.append(adj_mat)
+            self.adjacency_mat.append(torch.sigmoid(adj_mat))
             self.Gfeature_mat.append(emb)
 
     def get_avg_embedding(self, words, verbose=True):
