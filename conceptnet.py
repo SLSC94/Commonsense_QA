@@ -14,7 +14,7 @@ from utils import read_qa
 
 
 class ConceptNet:
-    questions = chocies = labels = vocab = None
+    questions = choices = labels = vocab = None
 
     def __init__(self, bert_model='bert-base-uncased', config_file='bert/bert_config.json', qa_model=None):
         self.tokenizer = BertTokenizer.from_pretrained(bert_model, do_lower_case=True)
@@ -31,6 +31,7 @@ class ConceptNet:
             dev = "cuda" if torch.cuda.is_available() else "cpu"
             model.load_state_dict(torch.load(qa_model, map_location=dev))
 
+        model.eval();
         self.model = model
 
     def load_file(self, split=None, split_type='rand'):
@@ -54,7 +55,6 @@ class ConceptNet:
 
     def build_vocab(self):
         assert self.questions is not None, 'Load questions from data file first. '
-        regex = r'\b\w+\b'
         vocab = re.findall(r'\b\w+\b', ' '.join(self.questions + list(np.reshape(self.choices, -1))))
         vocab = list(set(vocab))
         self.vocab = vocab
@@ -195,7 +195,7 @@ class ConceptNet:
         start_nodes = set([triplet[0] for triplet in triplets])
         end_nodes = set([triplet[2] for triplet in triplets])
         node_set = start_nodes.union(end_nodes)
-        return(node_set)
+        return node_set
     
     
     def similarity(self, w1, w2):
@@ -203,7 +203,7 @@ class ConceptNet:
         assert self.tokenizer is not None, 'Unknown tokenizer'
         ids = self.tokenizer.convert_tokens_to_ids([w1, w2])
         emb = self.model.bert.embeddings(torch.tensor([ids]))[0]
-        return int(emb[0] @ emb[1])
+        return float(emb[0] @ emb[1])
 
     def construct_subgraph(self, k=10, max_n=50):
         '''
@@ -264,5 +264,5 @@ class ConceptNet:
     
     def construct_subgraph(self, i):
         #takes in an i
-        
+        pass
         
