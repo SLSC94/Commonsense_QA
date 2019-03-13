@@ -24,14 +24,30 @@ class GCN(Module):
         if self.bias is not None:
             self.bias.data.uniform_(-stdv, stdv)
 
-    def forward(self, input, adj):
+    def forward(self, dictionary):
         
-        D_inv2 = adj.sum(dim = 1).diag().inverse() 
-        adj = D_inv2.mm(adj).mm(D_inv2)
         
-        support = torch.mm(input, self.weight)
-        output = torch.mm(adj, support)
+        
+        
+        input= dictionary['input']
+        adj = dictionary['adj']
+        
+        #batch size will be in the first dimension. 
+        self.batch_size = adj.size()[0]
+        self.n_nodes = adj.size()[1]
+        
+        adj_row_sums = adj.sum(dim = 1)**(-0.5)
+        
+        D = (torch.zeros(self.batch_size, self.n_nodes, self.n_nodes))
+        D.as_strided(adj_row_sums.size(), 
+                     [D.stride(0), D.size(2) + 1]).copy_(adj_row_sums)
+        #note: the adjacency matrix might have negative entries. 
+        
+        adj = torch.einsum('ijk,ikl,ilm->ijm',  D, adj, D)
+        
+        support = torch.einsum('ijk,kl->ijl', input, self.weight)
+        output = torch.einsum('ijk,ikl->ijl', adj, support)
         if self.bias is not None:
-            return output + self.bias
+            return {'input':output + self.bias, 'adj':dictionary['adj']}
         else:
-            return output
+            return {'input':output, 'adj':dictionary['adj']}
