@@ -173,7 +173,7 @@ class ConceptNet:
                                     choice_set = choice_set.union(self.get_neighbours(wd))
                                 except:
                                     if flag == 0:
-                                        print("Iteration: ", i, " ,Danger Word: ", wd)
+#                                         print("Iteration: ", i, " ,Danger Word: ", wd)
                                         flag = 1
 
                             if len(node_set.intersection(choice_set) ) != 0:
@@ -184,9 +184,12 @@ class ConceptNet:
                         counter[j] = 0
                 else:
                     counter[j] = -1 #so that we do not choose any stop words. 
-            self.source_concept.append(self.break_sentence(Q)[np.argmax(counter)] )
-
-
+            Temp_Q = self.break_sentence(Q)
+            Temp_source = [word for i,word in enumerate(Temp_Q) if counter[i] >= 0] 
+            self.source_concept.append(Temp_source)
+#             self.source_concept.append(self.break_sentence(Q)[np.argmax(counter)] )
+            
+            
         
         
     def get_neighbours(self, word):
@@ -220,17 +223,15 @@ class ConceptNet:
         assert self.questions is not None, 'Load data file first!'
         # TODO
         '''
-        HOW THE SUBGRAPH WILL BE CONSTRUCTED
+        HOW THE SUBGRAPH WILL BE CONSTRUCTED (version 1)
             1) Source concept S, and choices A, B, C will be the only nodes in the graph for now
             2) The weight between each pair of nodes will be the dot product between their
                average word embedding (since choices can have multiple words)
             3) return weighted adj matrix
-        '''
         
+        Uncomment below
         '''
-        This will also contain the features to pass into the CGN
         '''
-        
         self.problem_words = 0
         self.adjacency_mat = []
         self.Gfeature_mat = []
@@ -246,6 +247,58 @@ class ConceptNet:
             adj_mat = torch.matmul(emb, torch.t(emb))
             self.adjacency_mat.append(torch.sigmoid(adj_mat))
             self.Gfeature_mat.append(emb)
+        '''
+        #####################################################################
+        '''
+        HOW THE SUBGRAPH WILL BE CONSTRUCTED (version 2)
+            1) Use the weights as specified in Conceptnet
+        '''
+        self.adjacency_mat = []
+        self.Gfeature_mat = []
+        self.weighted_dict = json.load(open("data/weighted_relations.txt"))
+        
+        for SC, Choices in zip(self.source_concept, self.choices):
+            marker = True #if there are any mispellings, remove that damned example
+            together = SC 
+            
+            
+            for choice in Choices: #to deal with words that have multiple words
+                together = together + self.break_sentence(choice)
+                
+            length = len(together)
+            subgraph = np.zeros((length,length))
+            
+            #just fill in one side, then add its transpose
+            for i in range(length):
+                word = together[i]
+                try:
+                    word_list = self.weighted_dict[word]
+                except:
+                    marker = False                    
+                    break
+
+                for j in range(length):
+                    compare_word = together[j]
+
+                    for list_ in word_list:
+                        
+                        if compare_word in self.break_sentence(list_[0] + ' ' + list_[2]):
+                            subgraph[i,j] = list_[1] #list_[1] contains the weight
+                            break
+            if marker == False:
+                continue
+                
+            
+            subgraph = subgraph + subgraph.T
+            
+            #the term in the diagonal is for the self connectedness of the node.
+            subgraph = subgraph + np.diag(np.sum(subgraph, axis = 1) + (np.sum(subgraph, axis = 1) == 0)) 
+            subgraph = np.diag(1/np.diag(subgraph))**0.5 @ subgraph @ np.diag(1/np.diag(subgraph))**0.5
+            self.adjacency_mat.append(subgraph)
+            
+                    
+        
+        
 
     def get_avg_embedding(self, words, verbose=True):
         list_words = self.break_sentence(words)
