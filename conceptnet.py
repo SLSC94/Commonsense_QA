@@ -237,7 +237,7 @@ class ConceptNet:
 
         Uncomment below
         '''
-        '''
+        
         self.problem_words = 0
         self.adjacency_mat = []
         self.Gfeature_mat = []
@@ -253,11 +253,12 @@ class ConceptNet:
             adj_mat = torch.matmul(emb, torch.t(emb))
             self.adjacency_mat.append(torch.sigmoid(adj_mat))
             self.Gfeature_mat.append(emb)
-        '''
+        
         #####################################################################
         '''
         HOW THE SUBGRAPH WILL BE CONSTRUCTED (version 2)
             1) Use the weights as specified in Conceptnet
+        '''
         '''
         self.adjacency_mat = []
         self.Gfeature_mat = []
@@ -299,7 +300,7 @@ class ConceptNet:
             subgraph = subgraph + np.diag(np.sum(subgraph, axis=1) + (np.sum(subgraph, axis=1) == 0))
             subgraph = np.diag(1 / np.diag(subgraph)) ** 0.5 @ subgraph @ np.diag(1 / np.diag(subgraph)) ** 0.5
             self.adjacency_mat.append(subgraph)
-
+        '''
     def get_avg_embedding(self, words, verbose=True):
         if not isinstance(words, str):
             n = len(words)
