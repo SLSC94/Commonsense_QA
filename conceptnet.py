@@ -156,7 +156,8 @@ class ConceptNet:
         from nltk.corpus import stopwords
         SW = set(stopwords.words('english'))
 
-        self.source_concept = []
+        self.source_concept = []  # list of words
+        self.source_concept_ids = []  # list of lists
         for i in range(len(self.questions)):
             Q = self.questions[i]
             C = self.choices[i]
@@ -191,11 +192,12 @@ class ConceptNet:
                         counter[j] = 0
                 else:
                     counter[j] = -1  # so that we do not choose any stop words.
-            Temp_Q = self.break_sentence(Q)
-            Temp_source = [word for i, word in enumerate(Temp_Q) if counter[i] >= 0]
-            self.source_concept.append(Temp_source)
-
-    #             self.source_concept.append(self.break_sentence(Q)[np.argmax(counter)] )
+            #             Temp_Q = self.break_sentence(Q)
+            #             Temp_source = [word for i,word in enumerate(Temp_Q) if counter[i] >= 0]
+            #             self.source_concept.append(Temp_source)
+            self.source_concept.append(self.break_sentence(Q)[np.argmax(counter)])
+            self.source_concept_ids.append(self.tokenizer.convert_tokens_to_ids(
+                self.tokenizer.tokenize(self.break_sentence(Q)[np.argmax(counter)])))
 
     def get_neighbours(self, word):
         triplets = self.triplets[word]
